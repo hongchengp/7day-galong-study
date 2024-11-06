@@ -2,6 +2,7 @@ package gee
 
 import (
 	"net/http"
+	"strings"
 )
 
 type HandlerFunc func(c *Context)
@@ -56,11 +57,33 @@ func (r *RouterGroup) POST(pattern string, handler HandlerFunc) {
 	r.addRoute("POST", pattern, handler)
 }
 
+func (r *RouterGroup) Use(Handlers ...HandlerFunc) {
+	if r.middlewares == nil {
+		r.middlewares = make([]HandlerFunc, 0)
+	}
+	r.middlewares = append(r.middlewares, Handlers...)
+}
+
 func (engine *Engine) Run(addr string) {
 	http.ListenAndServe(addr, engine)
 }
 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := newContext(w, req)
-	engine.router.handle(c)
+	n, params := engine.router.getRoute(c.Method, c.Path)
+	if n == nil {
+		c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
+		return
+	}
+
+	c.Params = params 
+	pattern := n.pattern
+	for _, group := range engine.groups {
+		if strings.HasPrefix(pattern, group.prefix) {
+			c.handlers = append(c.handlers, group.middlewares...)
+		}
+	}
+	key := req.Method + "-" + pattern
+	c.handlers = append(c.handlers, engine.router.handlers[key])
+	c.Next()
 }

@@ -18,8 +18,12 @@ func main() {
 	g1.Use(func(c *gee.Context) {
 		// Start timer
 		t := time.Now()
-		c.Next()
 		log.Printf("[%d] %s in %v for group v1", c.StatusCode, c.Req.RequestURI, time.Since(t))
+		c.Next()
+	})
+	g1.Use(func(c *gee.Context) {
+		fmt.Println("yyj ai hcp")
+		c.Next()
 	})
 	g1.GET("/hello/:name", func(c *gee.Context) {
 		name := c.Param("name")
